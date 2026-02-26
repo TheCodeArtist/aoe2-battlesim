@@ -1,7 +1,7 @@
 import { CORS } from '../cors.js';
 import { SCENARIOS } from '../data.js';
 import { simulateLogic, batchLogic, sweepLogic } from './simulate.js';
-import { simulateLogic as simulateV2Logic } from './simulate_v2.js';
+import { simulateLogic as simulateV2Logic, batchLogic as batchV2Logic, sweepLogic as sweepV2Logic } from './simulate_v2.js';
 import { listUnitsLogic, getUnitLogic, listPresetsLogic, getPresetLogic } from './catalog.js';
 import { listScenariosLogic, runScenarioLogic } from './scenarios.js';
 
@@ -79,6 +79,14 @@ const OPTIONS_SCHEMA = {
   },
 };
 
+const OPTIONS_V2_SCHEMA = {
+  ...OPTIONS_SCHEMA,
+  properties: {
+    ...OPTIONS_SCHEMA.properties,
+    accuracy: { type: 'boolean', description: 'Enable accuracy modelling: ranged units deal 0 damage on a miss (default false).' },
+  },
+};
+
 // ── Tools manifest ────────────────────────────────────────────────────────────
 
 export const TOOLS = [
@@ -120,13 +128,95 @@ export const TOOLS = [
       properties: {
         side_a:  { ...ARMY_SPEC_SCHEMA, description: 'Army A — unit key must be a v2 civ-prefixed key.' },
         side_b:  { ...ARMY_SPEC_SCHEMA, description: 'Army B — unit key must be a v2 civ-prefixed key.' },
-        options: {
-          ...OPTIONS_SCHEMA,
-          properties: {
-            ...OPTIONS_SCHEMA.properties,
-            accuracy: { type: 'boolean', description: 'Enable accuracy modelling: ranged units deal 0 damage on a miss (default false).' },
+        options: OPTIONS_V2_SCHEMA,
+      },
+    },
+  },
+  {
+    name: 'simulate_v2_batch',
+    description:
+      'Run multiple v2 battle simulations in a single request, each tagged with a caller-supplied id. ' +
+      'Unit keys must be v2 civ-prefixed (e.g. "britons_cavalier"). ' +
+      'Returns an array where each element includes the id plus the same fields as simulate_v2. ' +
+      'Call GET /v2/units to discover valid keys.',
+    inputSchema: {
+      type: 'object',
+      required: ['matchups'],
+      additionalProperties: false,
+      properties: {
+        matchups: {
+          type: 'array',
+          description: 'Array of matchups to simulate.',
+          items: {
+            type: 'object',
+            required: ['side_a', 'side_b'],
+            additionalProperties: false,
+            properties: {
+              id:     { type: 'string', description: 'Caller-supplied identifier for this matchup.' },
+              side_a: { ...ARMY_SPEC_SCHEMA, description: 'Army A — unit key must be a v2 civ-prefixed key.' },
+              side_b: { ...ARMY_SPEC_SCHEMA, description: 'Army B — unit key must be a v2 civ-prefixed key.' },
+            },
           },
         },
+        options: OPTIONS_V2_SCHEMA,
+      },
+    },
+  },
+  {
+    name: 'simulate_v2_sweep',
+    description:
+      'Sweep a numeric parameter across a range using the v2 engine and report results per step. ' +
+      'Unit keys must be v2 civ-prefixed (e.g. "britons_cavalier"). ' +
+      'Returns: sweep_param, breakeven (the value where the winner first flips, or null if no flip), ' +
+      'and results array of {value, winner} entries. ' +
+      'Call GET /v2/units to discover valid keys.',
+    inputSchema: {
+      type: 'object',
+      required: ['side_a', 'side_b', 'sweep'],
+      additionalProperties: false,
+      properties: {
+        side_a: { ...ARMY_SPEC_SCHEMA, description: 'Army A — unit key must be a v2 civ-prefixed key.' },
+        side_b: { ...ARMY_SPEC_SCHEMA, description: 'Army B — unit key must be a v2 civ-prefixed key.' },
+        sweep: {
+          type: 'object',
+          description: 'Sweep configuration.',
+          required: ['target', 'range'],
+          additionalProperties: false,
+          properties: {
+            target: {
+              type: 'string',
+              description: 'Dot-path to the numeric field to sweep.',
+              enum: [
+                'side_a.count',          'side_b.count',
+                'side_a.micro',          'side_b.micro',
+                'side_a.engagement_pct', 'side_b.engagement_pct',
+                'side_a.buildings',      'side_b.buildings',
+                'side_a.delay',          'side_b.delay',
+                'side_a.tech_delay',     'side_b.tech_delay',
+                'side_a.units_before',   'side_b.units_before',
+                'side_a.overrides.hp',     'side_b.overrides.hp',
+                'side_a.overrides.patk',   'side_b.overrides.patk',
+                'side_a.overrides.matk',   'side_b.overrides.matk',
+                'side_a.overrides.parm',   'side_b.overrides.parm',
+                'side_a.overrides.marm',   'side_b.overrides.marm',
+                'side_a.overrides.reload', 'side_b.overrides.reload',
+                'side_a.overrides.range',  'side_b.overrides.range',
+              ],
+            },
+            range: {
+              type: 'object',
+              description: 'Numeric range for the sweep.',
+              required: ['min', 'max', 'step'],
+              additionalProperties: false,
+              properties: {
+                min:  { type: 'number', description: 'Start value (inclusive).' },
+                max:  { type: 'number', description: 'End value (inclusive).' },
+                step: { type: 'number', minimum: 0.001, description: 'Increment between values (must be > 0).' },
+              },
+            },
+          },
+        },
+        options: OPTIONS_V2_SCHEMA,
       },
     },
   },
@@ -305,7 +395,9 @@ export const TOOLS = [
 
 const TOOL_HANDLERS = {
   simulate:       (a) => simulateLogic(a.side_a, a.side_b, a.options),
-  simulate_v2:    (a) => simulateV2Logic(a.side_a, a.side_b, a.options),
+  simulate_v2:       (a) => simulateV2Logic(a.side_a, a.side_b, a.options),
+  simulate_v2_batch: (a) => batchV2Logic(a.matchups, a.options),
+  simulate_v2_sweep: (a) => sweepV2Logic(a.side_a, a.side_b, a.sweep, a.options),
   simulate_batch: (a) => batchLogic(a.matchups, a.options),
   simulate_sweep: (a) => sweepLogic(a.side_a, a.side_b, a.sweep, a.options),
   list_units:     (a) => listUnitsLogic(a.name),

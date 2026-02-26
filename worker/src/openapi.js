@@ -9,9 +9,12 @@ const INFO = {
 // MAPPING: Tool Name -> HTTP Route
 // IMPORTANT: Update this map when adding new tools/routes to ensure they appear in OpenAPI spec.
 const ROUTE_MAP = {
-  simulate:       { method: 'POST', path: '/simulate' },
-  simulate_batch: { method: 'POST', path: '/simulate/batch' },
-  simulate_sweep: { method: 'POST', path: '/simulate/sweep' },
+  simulate:          { method: 'POST', path: '/simulate' },
+  simulate_v2:       { method: 'POST', path: '/simulate/v2' },
+  simulate_batch:    { method: 'POST', path: '/simulate/batch' },
+  simulate_v2_batch: { method: 'POST', path: '/simulate/v2/batch' },
+  simulate_sweep:    { method: 'POST', path: '/simulate/sweep' },
+  simulate_v2_sweep: { method: 'POST', path: '/simulate/v2/sweep' },
   list_units:     { method: 'GET',  path: '/units', query: ['name'] },
   get_unit:       { method: 'GET',  path: '/units/{id}', pathParams: ['id'] },
   list_presets:   { method: 'GET',  path: '/presets', query: ['name'] },
