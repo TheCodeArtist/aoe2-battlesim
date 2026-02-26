@@ -1,33 +1,62 @@
+import { UNITS, PRESETS } from '../data.js';
 import { CORS } from '../cors.js';
 
+// ── Logic functions ───────────────────────────────────────────────────────────
+
 export function listUnitsLogic(nameFilter = '') {
-  throw new Error('Not implemented');
+  if (!nameFilter) return UNITS;
+  const q = nameFilter.toLowerCase();
+  return Object.fromEntries(
+    Object.entries(UNITS).filter(([, v]) => v.name.toLowerCase().includes(q))
+  );
 }
 
 export function getUnitLogic(id) {
-  throw new Error('Not implemented');
+  const unit = UNITS[id];
+  if (!unit) throw new Error(`Unit not found: ${id}`);
+  return unit;
 }
 
 export function listPresetsLogic(nameFilter = '') {
-  throw new Error('Not implemented');
+  if (!nameFilter) return PRESETS;
+  const q = nameFilter.toLowerCase();
+  return Object.fromEntries(
+    Object.entries(PRESETS).filter(([, v]) => v.name.toLowerCase().includes(q))
+  );
 }
 
 export function getPresetLogic(id) {
-  throw new Error('Not implemented');
+  const preset = PRESETS[id];
+  if (!preset) throw new Error(`Preset not found: ${id}`);
+  return preset;
 }
 
+// ── HTTP handlers ─────────────────────────────────────────────────────────────
+
 export function handleListUnits(request) {
-  return Response.json({ error: 'Not Implemented' }, { status: 501, headers: CORS });
+  const url        = new URL(request.url);
+  const nameFilter = url.searchParams.get('name') || '';
+  return Response.json(listUnitsLogic(nameFilter), { headers: CORS });
 }
 
 export function handleGetUnit(request, id) {
-  return Response.json({ error: 'Not Implemented' }, { status: 501, headers: CORS });
+  try {
+    return Response.json(getUnitLogic(id), { headers: CORS });
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 404, headers: CORS });
+  }
 }
 
 export function handleListPresets(request) {
-  return Response.json({ error: 'Not Implemented' }, { status: 501, headers: CORS });
+  const url        = new URL(request.url);
+  const nameFilter = url.searchParams.get('name') || '';
+  return Response.json(listPresetsLogic(nameFilter), { headers: CORS });
 }
 
 export function handleGetPreset(request, id) {
-  return Response.json({ error: 'Not Implemented' }, { status: 501, headers: CORS });
+  try {
+    return Response.json(getPresetLogic(id), { headers: CORS });
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 404, headers: CORS });
+  }
 }
