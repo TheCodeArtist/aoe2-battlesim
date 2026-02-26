@@ -22,7 +22,7 @@ export default {
       if (path === '/simulate')         return handleSimulate(request);
       if (path === '/simulate/batch')   return handleBatch(request);
       if (path === '/simulate/sweep')   return handleSweep(request);
-      if (path === '/mcp')              return handleMcp(request);
+      if (path === '/mcp' || path === '/mcp/')  return handleMcp(request);
 
       const scenarioMatch = path.match(/^\/scenarios\/([^/]+)\/simulate$/);
       if (scenarioMatch) return handleScenarioSimulate(request, scenarioMatch[1]);
@@ -43,7 +43,7 @@ export default {
 
     // 405 for known paths with wrong method; 404 for everything else
     const knownPaths = ['/simulate', '/simulate/batch', '/simulate/sweep',
-                        '/scenarios', '/units', '/presets', '/mcp'];
+                        '/scenarios', '/units', '/presets', '/mcp', '/mcp/'];
     const isKnown = knownPaths.includes(path)
       || /^\/scenarios\/[^/]+\/simulate$/.test(path)
       || /^\/units\/[^/]+$/.test(path)
