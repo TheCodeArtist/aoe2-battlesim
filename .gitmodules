@@ -1,3 +1,6 @@
 [submodule "vendor/chombat"]
 	path = vendor/chombat
 	url = https://github.com/Crazybus/chombat.git
+[submodule "vendor/aoe2-unit-analyzer"]
+	path = vendor/aoe2-unit-analyzer
+	url = https://github.com/ddk220-light/aoe2-unit-analyzer
