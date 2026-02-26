@@ -22,7 +22,7 @@ Built on top of [Chombat](https://chombat.crazybus.org) (included as a git submo
 
 All endpoints return JSON. CORS is enabled on all routes.
 
-### Simulation
+### Simulation — v1 (generic catalog)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -30,7 +30,17 @@ All endpoints return JSON. CORS is enabled on all routes.
 | `POST` | `/simulate/batch` | Run multiple matchups in one request |
 | `POST` | `/simulate/sweep` | Sweep a numeric parameter across a range |
 
-### Catalog
+### Simulation — v2 (civ-specific, recommended)
+
+Uses the full AoE2 armor-class damage formula, per-civ tech bonuses, trample, and accuracy modelling. Unit keys are civ-prefixed (e.g. `britons_cavalier`, `aztecs_elite_eagle_warrior`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/simulate/v2` | Run a single battle (v2 engine) |
+| `POST` | `/simulate/v2/batch` | Run multiple matchups (v2 engine) |
+| `POST` | `/simulate/v2/sweep` | Parameter sweep (v2 engine) |
+
+### Catalog — v1
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -38,6 +48,15 @@ All endpoints return JSON. CORS is enabled on all routes.
 | `GET` | `/units/:id` | Get a unit's full stat block |
 | `GET` | `/presets` | List all preset army configurations |
 | `GET` | `/presets/:id` | Get a preset's full stat block |
+
+### Catalog — v2
+
+1 433 civ-specific units across Feudal, Castle, and Imperial Age. Supports `?name=` and `?civ=` filters.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v2/units` | List all v2 units (`?name=cavalier`, `?civ=britons`) |
+| `GET` | `/v2/units/:id` | Get a single unit's full stat block (attacks, armors, bonuses) |
 
 ### Scenarios
 
@@ -52,8 +71,10 @@ All endpoints return JSON. CORS is enabled on all routes.
 |--------|------|-------------|
 | `POST` | `/mcp` | JSON-RPC 2.0 endpoint (MCP protocol version `2025-03-26`) |
 
-The MCP server exposes all simulation and catalog operations as tools:   
-`simulate`, `simulate_batch`, `simulate_sweep`,  
+The MCP server exposes all simulation and catalog operations as tools (10 total):
+
+`simulate_v2` *(preferred — full AoE2 formula)*, `simulate`,  
+`simulate_batch`, `simulate_sweep`,  
 `list_units`, `get_unit`,  
 `list_presets`, `get_preset`,  
 `list_scenarios`, `run_scenario`.
@@ -93,6 +114,7 @@ All simulation endpoints accept an optional `options` object:
 | `tick` | number | `0.05` | Simulation time step in seconds |
 | `maxDuration` | number | `300` | Maximum simulation duration in seconds |
 | `include_history` | boolean | `false` | Include tick-by-tick history in the result |
+| `accuracy` | boolean | `false` | **(v2 only)** Enable accuracy modelling — ranged units deal 0 damage on a miss |
 
 ---
 
@@ -131,13 +153,28 @@ All examples hit the live API.
 
 > Note: Install [jq](https://jqlang.org) for pretty output, or drop the `| jq` part.
 
-### 1. Do skirms beat archers 10v10?
+### 1. Do 20 Briton Halberdiers beat 10 Briton Cavaliers? (v2 — civ-specific)
+
+```bash
+curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate/v2 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "side_a": { "unit": "britons_halberdier", "count": 20 },
+    "side_b": { "unit": "britons_cavalier",   "count": 10 }
+  }' | jq '{ winner, "halbs_left": .side_a.remaining_count }'
+```
+
+```json
+{ "winner": "side_a", "halbs_left": 14 }
+```
+
+### 2. Do skirms beat archers 10v10? (v1 — generic catalog)
 
 ```bash
 curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
   -H "Content-Type: application/json" \
   -d '{
-    "side_a": { "unit": "archer",      "count": 10 },
+    "side_a": { "unit": "archer",     "count": 10 },
     "side_b": { "unit": "skirmisher", "count": 10 }
   }' | jq '{ winner, "skirms_left": .side_b.remaining_count }'
 ```
@@ -146,7 +183,7 @@ curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
 { "winner": "side_b", "skirms_left": 5 }
 ```
 
-### 2. Is Fletching worth it?
+### 3. Is Fletching worth it?
 
 Fletching (Feudal Age Blacksmith) gives archers **+1 pierce attack** (4→5) and **+1 range** (4→5).  
 Both matter: extra attack means more damage per volley, extra range means archers get the first shot.  
@@ -165,7 +202,7 @@ curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
 { "winner": "side_a", "archers_left": 6, "skirms_left": 0 }
 ```
 
-### 3. Alternately, how many unupgraded archers does it take to beat 10 skirms? (breakeven sweep)
+### 4. How many unupgraded archers does it take to beat 10 skirms? (breakeven sweep)
 
 ```bash
 curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate/sweep \
@@ -185,7 +222,9 @@ curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate/sweep \
 
 ## Development
 
-**Prerequisites:** Node.js, a [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier), and Wrangler (installed as a dev dependency).
+**Prerequisites:** Node.js, Python 3.9+, a [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier), and Wrangler (installed as a dev dependency).
+
+Python is required to regenerate `units_v2.js` from the `vendor/aoe2-unit-analyzer` submodule. It runs automatically as part of every pre-hook (`prebuild`, `predev`, `predeploy`, `pretest`).
 
 ```bash
 # Clone with submodules
@@ -194,7 +233,7 @@ cd aoe2-battlesim
 
 npm install
 
-# Start local dev server (generates data files, then runs wrangler dev)
+# Start local dev server (regenerates v1 + v2 data, then runs wrangler dev)
 npm run dev
 ```
 
@@ -242,16 +281,20 @@ Add two secrets to your GitHub repository (`Settings → Secrets and variables �
 worker/
   src/
     index.js          # Router entry point
-    sim.js            # Combat simulation engine
-    data.js           # Data resolution
+    sim.js            # Combat simulation engine (v1 — verbatim Chombat kernel)
+    sim_v2.js         # Combat simulation engine (v2 — armor-class formula, trample, accuracy)
+    data.js           # Data resolution (v1)
+    data_v2.js        # Data resolution (v2 — resolveUnit, ALL_UNITS, ARMOR_CLASSES)
     cors.js           # Shared CORS headers
-    routes/           # Route handlers (simulate, catalog, scenarios, mcp, root)
+    routes/           # Route handlers (simulate, simulate_v2, catalog, scenarios, mcp, root)
     generated/        # Auto-generated unit/preset/scenario data (gitignored)
   scripts/
-    gen-data.mjs      # Copies data from vendor/chombat → src/generated/
+    gen-data.mjs      # Generates v1 data from vendor/chombat → src/generated/
+    convert_data.py   # Generates v2 data from vendor/aoe2-unit-analyzer → src/generated/units_v2.js
   test/
     unit/             # Vitest unit tests
     integration/      # Vitest integration tests (Workers runtime)
 vendor/
-  chombat/            # Git submodule with the unit definitions and scenarios
+  chombat/            # Git submodule — v1 unit definitions and scenarios
+  aoe2-unit-analyzer/ # Git submodule — dat-file extracted AoE2 data (units, techs, civs, armor classes)
 ```

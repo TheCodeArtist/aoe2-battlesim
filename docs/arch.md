@@ -153,13 +153,48 @@ Returns all named scenarios with their metadata (name, description, side configs
 
 Runs a scenario as defined, with optional overrides. Makes sharing and linking results easy.
 
-### `GET /units` / `GET /units/{id}` — Unit catalog
+### `GET /units` / `GET /units/{id}` — Unit catalog (v1)
 
 Returns the full unit list or a single unit's stats. Supports filtering by `?name=archer`.
 
 ### `GET /presets` / `GET /presets/{id}` — Preset catalog
 
 Returns the full preset list or a single preset's stats.
+
+---
+
+### `POST /simulate/v2` — Single matchup (v2 engine)
+
+Same request/response shape as `/simulate` but uses the v2 simulation engine.
+Unit keys are civ-prefixed: `britons_cavalier`, `aztecs_elite_eagle_warrior`, etc.
+Call `GET /v2/units` to discover valid keys.
+
+Supports an additional `options.accuracy` boolean: when `true`, ranged units
+(range > 1) have their effective damage scaled by `unit.accuracy / 100` per volley.
+
+### `POST /simulate/v2/batch` / `POST /simulate/v2/sweep`
+
+Same shape as `/simulate/batch` and `/simulate/sweep`, using the v2 engine.
+
+---
+
+### `GET /v2/units` — V2 unit catalog
+
+Returns all 1 433 civ-specific units (Feudal, Castle, and Imperial Age).
+
+**Query parameters:**
+
+| Param | Description |
+|-------|-------------|
+| `?name=cavalier` | Case-insensitive substring filter on unit name |
+| `?civ=britons` | Filter to a single civ by slug prefix |
+
+### `GET /v2/units/:id` — Single v2 unit
+
+Returns the full stat block for one unit, or `404` with `{ "error": "V2 unit not found: …" }`.
+
+Each v2 unit includes: `hp`, `attacks` (armor-class map), `armors` (armor-class map),
+`cost`, `reload`, `range`, `speed`, `accuracy`, `blastWidth`, `blastDamage`, `blastLevel`, `bonuses`.
 
 ---
 
@@ -183,7 +218,7 @@ Content-Type: application/json
 |--------|-------------|
 | `initialize` | Handshake |
 | `notifications/initialized` | Client ack (notification — no `id`, returns `204`) |
-| `tools/list` | Return all 9 tool definitions |
+| `tools/list` | Return all 10 tool definitions |
 | `tools/call` | Invoke a tool by name |
 
 ---
@@ -369,6 +404,29 @@ Two shared sub-schemas are referenced via `$defs` in the tools that need them.
   }
 }
 ```
+
+**`simulate_v2`** *(preferred — full AoE2 armor-class formula, trample, accuracy)*
+```json
+{
+  "type": "object",
+  "required": ["side_a", "side_b"],
+  "properties": {
+    "side_a":  { "$ref": "#/$defs/ArmySpec", "description": "unit key must be a civ-prefixed v2 key, e.g. 'britons_cavalier'." },
+    "side_b":  { "$ref": "#/$defs/ArmySpec" },
+    "options": {
+      "allOf": [{ "$ref": "#/$defs/Options" }],
+      "properties": {
+        "accuracy": {
+          "type": "boolean",
+          "description": "Enable accuracy modelling: ranged units deal 0 damage on a miss (default false)."
+        }
+      }
+    }
+  }
+}
+```
+
+Unit keys for v2 are civ-prefixed: call `GET /v2/units` or the `list_v2_units` HTTP endpoint to discover them.
 
 **`simulate_batch`**
 ```json
