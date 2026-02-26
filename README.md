@@ -71,9 +71,10 @@ Uses the full AoE2 armor-class damage formula, per-civ tech bonuses, trample, an
 |--------|------|-------------|
 | `POST` | `/mcp` | JSON-RPC 2.0 endpoint (MCP protocol version `2025-03-26`) |
 
-The MCP server exposes all simulation and catalog operations as tools (10 total):
+The MCP server exposes all simulation and catalog operations as tools (12 total):
 
 `simulate_v2` *(preferred — full AoE2 formula)*, `simulate`,  
+`simulate_v2_batch`, `simulate_v2_sweep`,  
 `simulate_batch`, `simulate_sweep`,  
 `list_units`, `get_unit`,  
 `list_presets`, `get_preset`,  

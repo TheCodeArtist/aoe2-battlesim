@@ -50,7 +50,7 @@ The bread-and-butter endpoint.
     "micro": 5
   },
   "options": {
-    "max_duration": 300,
+    "maxDuration": 300,
     "tick": 0.05,
     "include_history": false
   }
@@ -204,7 +204,7 @@ Each v2 unit includes: `hp`, `attacks` (armor-class map), `armors` (armor-class 
 
 ### `POST /mcp` — Model Context Protocol (Streamable HTTP transport)
 
-Implements the [MCP Streamable HTTP transport](https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports/#streamable-http).
+Implements the [MCP Streamable HTTP transport](https://spec.modelcontextprotocol.io/specification/2025-03-26/basic/transports/#streamable-http).
 All messages are JSON-RPC 2.0. Responses are plain JSON (no SSE stream needed for these tools).
 
 **Request headers:**
@@ -217,8 +217,8 @@ Content-Type: application/json
 | Method | Description |
 |--------|-------------|
 | `initialize` | Handshake |
-| `notifications/initialized` | Client ack (notification — no `id`, returns `204`) |
-| `tools/list` | Return all 10 tool definitions |
+| `notifications/initialized` | Client ack (notification — no `id`, returns `202`) |
+| `tools/list` | Return all 12 tool definitions |
 | `tools/call` | Invoke a tool by name |
 
 ---
@@ -228,7 +228,7 @@ Content-Type: application/json
 {
   "jsonrpc": "2.0", "id": 1,
   "result": {
-    "protocolVersion": "2024-11-05",
+    "protocolVersion": "2025-03-26",
     "capabilities": { "tools": {} },
     "serverInfo": { "name": "aoe2-battlesim", "version": "1.0.0" }
   }
@@ -332,8 +332,8 @@ Two shared sub-schemas are referenced via `$defs` in the tools that need them.
     },
     "engagement_pct": {
       "type": "number",
-      "description": "Percentage of units actively firing each volley (0–100). 100 = all units fight. Lower values model partial engagements, flanking, or chokepoints.",
-      "minimum": 0,
+      "description": "Percentage of units actively firing each volley (1–100). 100 = all units fight. Lower values model partial engagements, flanking, or chokepoints.",
+      "minimum": 1,
       "maximum": 100,
       "default": 100,
       "examples": [100, 75, 50, 25]
@@ -364,7 +364,7 @@ Two shared sub-schemas are referenced via `$defs` in the tools that need them.
 {
   "type": "object",
   "properties": {
-    "max_duration": {
+    "maxDuration": {
       "type": "number",
       "description": "Simulation time cap in seconds. Prevents infinite loops on evenly-matched sides. Raise if you expect very long attrition fights.",
       "minimum": 1,
@@ -426,7 +426,75 @@ Two shared sub-schemas are referenced via `$defs` in the tools that need them.
 }
 ```
 
-Unit keys for v2 are civ-prefixed: call `GET /v2/units` or the `list_v2_units` HTTP endpoint to discover them.
+Unit keys for v2 are civ-prefixed: call `GET /v2/units` to discover them.
+
+**`simulate_v2_batch`** *(v2 engine — multiple matchups in one request)*
+```json
+{
+  "type": "object",
+  "required": ["matchups"],
+  "properties": {
+    "matchups": {
+      "type": "array",
+      "description": "List of independent v2 matchups to run. Each result is tagged with the caller-supplied id.",
+      "items": {
+        "type": "object",
+        "required": ["side_a", "side_b"],
+        "properties": {
+          "id":     { "type": "string", "description": "Caller-supplied identifier echoed in the result." },
+          "side_a": { "$ref": "#/$defs/ArmySpec", "description": "unit key must be a civ-prefixed v2 key." },
+          "side_b": { "$ref": "#/$defs/ArmySpec" }
+        }
+      }
+    },
+    "options": {
+      "allOf": [{ "$ref": "#/$defs/Options" }],
+      "properties": {
+        "accuracy": { "type": "boolean", "description": "Enable accuracy modelling (default false)." }
+      }
+    }
+  }
+}
+```
+
+**`simulate_v2_sweep`** *(v2 engine — parameter sweep)*
+```json
+{
+  "type": "object",
+  "required": ["side_a", "side_b", "sweep"],
+  "properties": {
+    "side_a": { "$ref": "#/$defs/ArmySpec", "description": "unit key must be a civ-prefixed v2 key." },
+    "side_b": { "$ref": "#/$defs/ArmySpec" },
+    "sweep": {
+      "type": "object",
+      "required": ["target", "range"],
+      "description": "Defines which parameter to vary and the range to sweep.",
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Dot-path to the numeric field being swept.",
+          "examples": ["side_a.count", "side_b.count", "side_a.overrides.hp", "side_b.overrides.patk"]
+        },
+        "range": {
+          "type": "object",
+          "required": ["min", "max", "step"],
+          "properties": {
+            "min":  { "type": "number", "minimum": 0 },
+            "max":  { "type": "number" },
+            "step": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      }
+    },
+    "options": {
+      "allOf": [{ "$ref": "#/$defs/Options" }],
+      "properties": {
+        "accuracy": { "type": "boolean", "description": "Enable accuracy modelling (default false)." }
+      }
+    }
+  }
+}
+```
 
 **`simulate_batch`**
 ```json
@@ -523,7 +591,19 @@ Unit keys for v2 are civ-prefixed: call `GET /v2/units` or the `list_v2_units` H
 }
 ```
 
-**`list_presets`** — `{ "type": "object", "properties": {} }`
+**`list_presets`**
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Case-insensitive substring filter on preset name. Omit to return all presets.",
+      "examples": ["archer", "knight", "skirm"]
+    }
+  }
+}
+```
 
 **`get_preset`**
 ```json
