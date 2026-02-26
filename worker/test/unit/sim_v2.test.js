@@ -248,6 +248,35 @@ describe('CombatSim accuracy modelling (options.accuracy: true)', () => {
   });
 });
 
+// ── Unit constructor — count default ──────────────────────────────────────────
+
+describe('Unit constructor — count default', () => {
+  it('defaults initialCount to 1 when count is absent', () => {
+    const u = new Unit({ name: 'X', hp: 100, range: 0, reload: 2, attacks: {}, armors: {} });
+    expect(u.initialCount).toBe(1);
+    expect(u.currentCount).toBe(1);
+  });
+
+  it('respects an explicit count of 1', () => {
+    const u = makeUnit({ count: 1 });
+    expect(u.initialCount).toBe(1);
+  });
+
+  it('respects an explicit count > 1', () => {
+    const u = makeUnit({ count: 5 });
+    expect(u.initialCount).toBe(5);
+  });
+
+  it('CombatSim.run() without count specified produces a real fight (not instant draw)', () => {
+    const cfg = { engagement: 100, targetMicro: 0 };
+    const unit = { name: 'X', hp: 100, range: 0, reload: 2, attacks: { '4': 10 }, armors: { '4': 2 } };
+    const { armyA, armyB, duration } = new CombatSim(unit, unit, cfg, cfg).run();
+    // Both armies start at 1 unit — one must die; duration must be > 0
+    expect(armyA.remaining === 0 || armyB.remaining === 0).toBe(true);
+    expect(duration).toBeGreaterThan(0);
+  });
+});
+
 // ── Unit getParsedCost() with cost object ─────────────────────────────────────
 
 describe('Unit.getParsedCost() with cost object', () => {

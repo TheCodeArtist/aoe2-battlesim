@@ -1,7 +1,7 @@
 class Unit {
   constructor(data) {
     this.name = data.name || 'Unit';
-    this.initialCount = parseFloat(data.count) || 0;
+    this.initialCount = data.count !== undefined ? parseFloat(data.count) : 1;
     this.currentCount = this.initialCount;
     this.hpPerUnit = parseFloat(data.hp) || 1;
     this.currentUnitHp = this.hpPerUnit;
