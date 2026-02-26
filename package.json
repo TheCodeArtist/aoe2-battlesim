@@ -1,0 +1,23 @@
+{
+  "name": "aoe2-battlesim",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "prebuild":         "node worker/scripts/gen-data.mjs",
+    "predev":           "node worker/scripts/gen-data.mjs",
+    "predeploy":        "node worker/scripts/gen-data.mjs",
+    "dev":              "wrangler dev --config worker/wrangler.toml",
+    "deploy":           "wrangler deploy --config worker/wrangler.toml",
+    "test":             "vitest run --config worker/vitest.config.js",
+    "test:integration": "vitest run --config worker/vitest.integration.config.js",
+    "test:all":         "npm test && npm run test:integration",
+    "test:watch":       "vitest --config worker/vitest.config.js",
+    "test:coverage":    "vitest run --coverage --config worker/vitest.config.js"
+  },
+  "devDependencies": {
+    "wrangler": "latest",
+    "vitest": "3.2.4",
+    "@cloudflare/vitest-pool-workers": "latest",
+    "@vitest/coverage-v8": "3.2.4"
+  }
+}

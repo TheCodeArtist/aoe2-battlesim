@@ -1,0 +1,31 @@
+---
+description: Language, module, naming, and formatting conventions for worker/ code
+globs: worker/**/*.js,worker/**/*.mjs
+alwaysApply: false
+---
+
+# Code Style
+
+## Language & Modules
+- **ES Modules only** — `"type": "module"` in `package.json`. Every file uses `import`/`export`; never `require()`.
+- **No TypeScript** — plain `.js` files throughout. JSDoc for param/return types where helpful.
+
+## File Naming
+- Lowercase, hyphenated filenames: `gen-data.mjs`, `sim.js`, `data.js`.
+- Route files under `worker/src/routes/`: `simulate.js`, `scenarios.js`, `catalog.js`, `mcp.js`.
+- Test files mirror source under `worker/test/`: `test/unit/sim.test.js`, `test/integration/simulate.test.js`, etc.
+
+## Formatting
+- 2-space indentation.
+- Single quotes unless the string contains a single quote.
+- `const` by default; `let` only where reassignment is necessary; **never `var`**.
+- No trailing whitespace. Files end with a single newline.
+- Arrow functions for callbacks; named `function` declarations for top-level exports.
+
+## Error Handling
+- **Logic functions** throw plain `Error` with descriptive messages:
+  ```js
+  throw new Error('Unknown unit key: archer_xyz');
+  ```
+- **HTTP handlers** catch and return `Response.json({ error: err.message }, { status: 400, headers: CORS })`.
+- **MCP handlers** catch and return `{ isError: true, content: [{ type: 'text', text: err.message }] }` — never a top-level JSON-RPC error for tool failures (per MCP spec §tool-errors).

@@ -1,0 +1,48 @@
+---
+description: Two-layer route architecture, sim.js verbatim-copy policy, and field mapping rules
+globs: worker/src/**/*.js
+alwaysApply: false
+---
+
+# Architecture
+
+## The Two-Layer Rule
+Every route file exports two distinct things — a pure logic function and an HTTP handler:
+
+```js
+// Layer 1 — pure JS, no Request/Response, testable without a Worker runtime
+export function simulateLogic(side_a, side_b, options = {}) { ... }
+
+// Layer 2 — parses Request, calls logic, wraps in Response
+export async function handleSimulate(request) {
+  const { side_a, side_b, options } = await request.json();
+  const result = simulateLogic(side_a, side_b, options);
+  return Response.json(result, { headers: CORS });
+}
+```
+
+Logic functions are unit-tested without a Worker runtime. HTTP handlers are covered by integration tests.
+
+## sim.js — Verbatim Copy Policy
+`worker/src/sim.js` is a near-verbatim copy of the simulation kernel from `vendor/chombat/script.js`. **Only permitted additions:**
+- The `export { Unit, CombatSim, calculateCount };` statement at the bottom.
+- Making `tick` and `maxDuration` constructor-configurable (two `if (config && ...)` lines).
+- **No other logic changes.** This keeps future chombat diffs mechanical to apply.
+
+## CORS
+Import `CORS` from `'../cors.js'` in route files. **Never import from `index.js`** — that causes circular imports.
+
+## Data Field Mapping
+Mapping between snake_case API fields and camelCase `Unit` constructor fields lives **exclusively in `data.js` (`resolveUnit`)** and route handlers. Never put mapping logic in `sim.js`.
+
+| API field | Unit constructor field |
+|---|---|
+| `bonus_atk` | `bonusAtk` |
+| `bonus_reduction` (0–1 float) | `bonusReduct` (0–100 int — **multiply by 100 on input**) |
+| `tech_delay` | `techDelay` |
+| `units_before` | `unitsBefore` |
+| `engagement_pct` | `configX.engagement` |
+| `micro` | `configX.targetMicro` |
+| `resource_discounts.all/food/wood/gold` | `discAll` / `discF` / `discW` / `discG` |
+
+> `atkSpeed` exists in the chombat `Unit` constructor but is **not exposed** by the API — omit it deliberately.

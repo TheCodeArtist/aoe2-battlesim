@@ -1,0 +1,42 @@
+---
+description: TDD workflow, Vitest setup, coverage requirements, and fixture conventions
+globs: worker/test/**/*.js,worker/vitest*.js
+alwaysApply: false
+---
+
+# Testing
+
+## Workflow (TDD)
+1. Read the step's Goal and Implementation Notes.
+2. **Write failing tests first** — they define the contract.
+3. Implement until all tests pass.
+4. Verify the Definition of Done checklist.
+5. **Commit with tests included** before starting the next step.
+
+> No step may be started until all tests from the previous step are passing and committed.
+
+## Two Vitest Configs
+
+| Config | Scope | Environment |
+|---|---|---|
+| `worker/vitest.config.js` | `test/unit/**` | Node (no Worker runtime) |
+| `worker/vitest.integration.config.js` | `test/integration/**` | `@cloudflare/vitest-pool-workers` |
+
+```json
+"test":             "vitest run --config worker/vitest.config.js",
+"test:integration": "vitest run --config worker/vitest.integration.config.js",
+"test:all":         "npm test && npm run test:integration"
+```
+
+## Coverage Requirements
+- **Logic functions**: ≥ 90% line coverage via `vitest --coverage`.
+- **HTTP handlers**: every route needs at least one happy-path and one error-path integration test.
+- **MCP handlers**: every JSON-RPC method must have a dedicated test.
+
+## Fixtures
+Place all shared test payloads in **`worker/test/fixtures.js`**. Import from there — do not repeat raw payloads inline in test files.
+
+## What NOT to Test
+- Generated files in `worker/src/generated/` (build artefacts).
+- `gen-data.mjs` beyond a smoke run verifying output files exist with the correct export line.
+- `wrangler.toml` or deployment config.
