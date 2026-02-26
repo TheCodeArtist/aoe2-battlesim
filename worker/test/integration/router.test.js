@@ -51,4 +51,42 @@ describe('routing', () => {
     expect(res.status).not.toBe(404);
     expect(res.status).not.toBe(405);
   });
+
+  it('routes POST /simulate/v2 (not 404/405)', async () => {
+    const res = await SELF.fetch('http://example.com/simulate/v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).not.toBe(404);
+    expect(res.status).not.toBe(405);
+  });
+
+  it('routes POST /simulate/v2/batch (not 404/405)', async () => {
+    const res = await SELF.fetch('http://example.com/simulate/v2/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).not.toBe(404);
+    expect(res.status).not.toBe(405);
+  });
+
+  it('routes POST /simulate/v2/sweep (not 404/405)', async () => {
+    const res = await SELF.fetch('http://example.com/simulate/v2/sweep', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).not.toBe(404);
+    expect(res.status).not.toBe(405);
+  });
+});
+
+describe('CORS preflight - v2 routes', () => {
+  it('OPTIONS /simulate/v2 returns 204 with CORS headers', async () => {
+    const res = await SELF.fetch('http://example.com/simulate/v2', { method: 'OPTIONS' });
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
 });

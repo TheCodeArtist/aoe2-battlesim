@@ -38,14 +38,16 @@ describe('GET /mcp', () => {
 });
 
 describe('tools/list', () => {
-  it('returns all 10 tools including simulate_v2', async () => {
+  it('returns all 12 tools', async () => {
     const res  = await mcp({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
     expect(res.status).toBe(200);
     const { result } = await res.json();
-    expect(result.tools).toHaveLength(10);
+    expect(result.tools).toHaveLength(12);
     const names = result.tools.map(t => t.name);
     expect(names).toContain('simulate');
     expect(names).toContain('simulate_v2');
+    expect(names).toContain('simulate_v2_batch');
+    expect(names).toContain('simulate_v2_sweep');
     expect(names).toContain('run_scenario');
     expect(names).toContain('simulate_sweep');
   });
@@ -153,6 +155,77 @@ describe('tools/call - simulate_v2', () => {
         arguments: {
           side_a: { unit: 'zzz_bad_unit', count: 5 },
           side_b: { unit: 'britons_cavalier', count: 5 },
+        },
+      },
+    });
+    const { result } = await res.json();
+    expect(result.isError).toBe(true);
+  });
+});
+
+describe('tools/call - simulate_v2_batch', () => {
+  it('returns an array of results tagged with ids', async () => {
+    const res = await mcp({
+      jsonrpc: '2.0', id: 12, method: 'tools/call',
+      params: {
+        name: 'simulate_v2_batch',
+        arguments: {
+          matchups: [
+            { id: 'run_1', side_a: { unit: 'britons_halberdier', count: 20 }, side_b: { unit: 'britons_cavalier', count: 10 } },
+            { id: 'run_2', side_a: { unit: 'britons_cavalier', count: 10 }, side_b: { unit: 'britons_halberdier', count: 20 } },
+          ],
+        },
+      },
+    });
+    const { result } = await res.json();
+    expect(result.isError).toBe(false);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].id).toBe('run_1');
+    expect(parsed[0]).toHaveProperty('winner');
+  });
+
+  it('returns isError:true for empty matchups', async () => {
+    const res = await mcp({
+      jsonrpc: '2.0', id: 13, method: 'tools/call',
+      params: { name: 'simulate_v2_batch', arguments: { matchups: [] } },
+    });
+    const { result } = await res.json();
+    expect(result.isError).toBe(true);
+  });
+});
+
+describe('tools/call - simulate_v2_sweep', () => {
+  it('returns breakeven in parsed text', async () => {
+    const res = await mcp({
+      jsonrpc: '2.0', id: 14, method: 'tools/call',
+      params: {
+        name: 'simulate_v2_sweep',
+        arguments: {
+          side_a: { unit: 'britons_halberdier' },
+          side_b: { unit: 'britons_cavalier', count: 10 },
+          sweep:  { target: 'side_a.count', range: { min: 1, max: 30, step: 1 } },
+        },
+      },
+    });
+    const { result } = await res.json();
+    expect(result.isError).toBe(false);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed).toHaveProperty('breakeven');
+    expect(parsed).toHaveProperty('results');
+    expect(parsed.breakeven).not.toBeNull();
+  });
+
+  it('returns isError:true for invalid sweep step', async () => {
+    const res = await mcp({
+      jsonrpc: '2.0', id: 15, method: 'tools/call',
+      params: {
+        name: 'simulate_v2_sweep',
+        arguments: {
+          side_a: { unit: 'britons_halberdier' },
+          side_b: { unit: 'britons_cavalier', count: 10 },
+          sweep:  { target: 'side_a.count', range: { min: 1, max: 10, step: 0 } },
         },
       },
     });
