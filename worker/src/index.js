@@ -4,6 +4,7 @@ import { handleListScenarios, handleScenarioSimulate } from './routes/scenarios.
 import { handleListUnits, handleGetUnit, handleListPresets, handleGetPreset } from './routes/catalog.js';
 import { handleMcp } from './routes/mcp.js';
 import { handleRoot } from './routes/root.js';
+import { generateOpenApi, getSwaggerUiHtml } from './openapi.js';
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: CORS });
@@ -30,8 +31,10 @@ export default {
 
     // GET routes
     if (method === 'GET') {
-      if (path === '/')           return handleRoot();
-      if (path === '/scenarios')  return handleListScenarios(request);
+      if (path === '/')             return handleRoot();
+      if (path === '/openapi.json') return json(generateOpenApi(request));
+      if (path === '/docs')         return new Response(getSwaggerUiHtml(), { headers: { ...CORS, 'Content-Type': 'text/html' } });
+      if (path === '/scenarios')    return handleListScenarios(request);
       if (path === '/units')      return handleListUnits(request);
       if (path === '/presets')    return handleListPresets(request);
 
