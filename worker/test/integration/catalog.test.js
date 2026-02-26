@@ -53,3 +53,48 @@ describe('GET /presets/:id', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('GET /v2/units', () => {
+  it('returns 200 with all v2 units', async () => {
+    const res  = await SELF.fetch('http://example.com/v2/units');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Object.keys(body).length).toBeGreaterThan(500);
+  });
+
+  it('?name= filter returns matching units', async () => {
+    const res  = await SELF.fetch('http://example.com/v2/units?name=cavalier');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Object.keys(body).length).toBeGreaterThan(0);
+    Object.values(body).forEach(u => expect(u.name.toLowerCase()).toContain('cavalier'));
+  });
+
+  it('?civ= filter returns only that civ units', async () => {
+    const res  = await SELF.fetch('http://example.com/v2/units?civ=britons');
+    const body = await res.json();
+    expect(Object.keys(body).every(k => k.startsWith('britons_'))).toBe(true);
+  });
+
+  it('CORS header is present', async () => {
+    const res = await SELF.fetch('http://example.com/v2/units');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+});
+
+describe('GET /v2/units/:id', () => {
+  it('returns a single v2 unit for a valid key', async () => {
+    const res  = await SELF.fetch('http://example.com/v2/units/britons_cavalier');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.hp).toBeGreaterThan(0);
+    expect(body.attacks).toBeDefined();
+    expect(body.armors).toBeDefined();
+    expect(body.bonuses).toBeDefined();
+  });
+
+  it('returns 404 for an unknown v2 unit key', async () => {
+    const res = await SELF.fetch('http://example.com/v2/units/zzz_no_such_unit');
+    expect(res.status).toBe(404);
+  });
+});
