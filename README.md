@@ -58,6 +58,13 @@ The MCP server exposes all simulation and catalog operations as tools:
 `list_presets`, `get_preset`,  
 `list_scenarios`, `run_scenario`.
 
+### Documentation
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/docs` | Interactive Swagger UI documentation |
+| `GET` | `/openapi.json` | OpenAPI 3.0 specification JSON |
+
 ---
 
 ## Army Spec
