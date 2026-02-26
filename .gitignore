@@ -3,3 +3,5 @@ worker/src/generated/
 .wrangler/
 dist/
 coverage/
+pyvenv
+__pycache__
