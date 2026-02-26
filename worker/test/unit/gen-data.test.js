@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { spawnSync } from 'child_process';
-import { readFileSync, rmSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,7 +14,10 @@ function runGenData() {
 
 describe('gen-data.mjs', () => {
   beforeAll(() => {
-    if (existsSync(GEN)) rmSync(GEN, { recursive: true });
+    // Run the script to ensure outputs are present and up-to-date.
+    // We do NOT delete the generated dir first because other test files
+    // import data.js (which depends on generated/) and deleting it would
+    // cause a race condition in vitest's parallel file initialization.
     runGenData();
   });
 
