@@ -9,6 +9,14 @@ vendor_path = current_dir.parent.parent / "vendor" / "aoe2-unit-analyzer"
 sys.path.append(str(vendor_path))
 
 try:
+    import analysis.config as _analysis_config
+
+    # Prefer the committed extracted_data snapshot in this repo so CI doesn't
+    # need the submodule's gitignored files or the game's .dat file.
+    _committed_data = current_dir.parent.parent / "worker" / "data" / "extracted_data"
+    if _committed_data.exists():
+        _analysis_config.OUTPUT_DIR = _committed_data
+
     from analysis.unit_analyzer import UnitAnalyzer
     from analysis.config import (
     IMPERIAL_UNITS, CASTLE_UNITS, FEUDAL_UNITS,
