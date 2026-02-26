@@ -1,3 +1,4 @@
+import { CORS } from '../cors.js';
 import { SCENARIOS } from '../data.js';
 import { simulateLogic, batchLogic, sweepLogic } from './simulate.js';
 import { listUnitsLogic, getUnitLogic, listPresetsLogic, getPresetLogic } from './catalog.js';
@@ -229,30 +230,27 @@ const TOOL_HANDLERS = {
 export async function handleMcp(request) {
   const msg = await request.json();
 
-  // Notification: no id present → process but return 204
+  // Notification (no id) → 202 Accepted; no response body per MCP 2025-03-26
   if (msg.id === undefined) {
-    return new Response(null, { status: 204 });
+    return new Response(null, { status: 202 });
   }
 
   const respond = (result) =>
     new Response(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }),
-      { headers: { 'Content-Type': 'application/json' } });
+      { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
   const respondError = (code, message) =>
     new Response(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code, message } }),
-      { headers: { 'Content-Type': 'application/json' } });
+      { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
   try {
     switch (msg.method) {
       case 'initialize':
         return respond({
-          protocolVersion: '2024-11-05',
+          protocolVersion: '2025-03-26',
           capabilities: { tools: {} },
           serverInfo: { name: 'aoe2-battlesim', version: '1.0.0' },
         });
-
-      case 'notifications/initialized':
-        return new Response(null, { status: 204 });
 
       case 'tools/list':
         return respond({ tools: TOOLS });

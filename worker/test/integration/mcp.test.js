@@ -4,26 +4,36 @@ import { SELF } from 'cloudflare:test';
 async function mcp(body) {
   return SELF.fetch('http://example.com/mcp', {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
     body:    JSON.stringify(body),
   });
 }
 
 describe('initialize', () => {
-  it('returns protocolVersion 2024-11-05', async () => {
+  it('returns protocolVersion 2025-03-26', async () => {
     const res  = await mcp({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.result.protocolVersion).toBe('2024-11-05');
+    expect(body.result.protocolVersion).toBe('2025-03-26');
     expect(body.result.capabilities).toHaveProperty('tools');
     expect(body.result.serverInfo.name).toBe('aoe2-battlesim');
   });
 });
 
 describe('notifications/initialized', () => {
-  it('returns 204 (notification — no id)', async () => {
+  it('returns 202 (notification - no id)', async () => {
     const res = await mcp({ jsonrpc: '2.0', method: 'notifications/initialized' });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(202);
+  });
+});
+
+describe('GET /mcp', () => {
+  it('returns 405 (SSE stream not offered - Streamable HTTP transport signal)', async () => {
+    const res = await SELF.fetch('http://example.com/mcp', {
+      method:  'GET',
+      headers: { 'Accept': 'text/event-stream' },
+    });
+    expect(res.status).toBe(405);
   });
 });
 
@@ -40,7 +50,7 @@ describe('tools/list', () => {
   });
 });
 
-describe('tools/call — simulate', () => {
+describe('tools/call - simulate', () => {
   it('returns isError:false and winner in text', async () => {
     const res = await mcp({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
@@ -69,7 +79,7 @@ describe('tools/call — simulate', () => {
   });
 });
 
-describe('tools/call — simulate_sweep', () => {
+describe('tools/call - simulate_sweep', () => {
   it('returns breakeven in parsed text', async () => {
     const res = await mcp({
       jsonrpc: '2.0', id: 5, method: 'tools/call',
@@ -89,7 +99,7 @@ describe('tools/call — simulate_sweep', () => {
   });
 });
 
-describe('tools/call — get_unit', () => {
+describe('tools/call - get_unit', () => {
   it('returns archer stat fields', async () => {
     const res = await mcp({
       jsonrpc: '2.0', id: 6, method: 'tools/call',
@@ -102,7 +112,7 @@ describe('tools/call — get_unit', () => {
   });
 });
 
-describe('tools/call — get_preset', () => {
+describe('tools/call - get_preset', () => {
   it('returns preset stat fields', async () => {
     const res = await mcp({
       jsonrpc: '2.0', id: 7, method: 'tools/call',
@@ -115,7 +125,7 @@ describe('tools/call — get_preset', () => {
   });
 });
 
-describe('tools/call — unknown tool', () => {
+describe('tools/call - unknown tool', () => {
   it('returns isError:true', async () => {
     const res = await mcp({
       jsonrpc: '2.0', id: 8, method: 'tools/call',
