@@ -3,7 +3,7 @@ import { TOOLS } from './routes/mcp.js';
 const INFO = {
   title: 'Age of Empires II Battle Simulator API',
   description: 'API for simulating battles, retrieving unit stats, and running scenarios.',
-  version: '0.1.0',
+  version: '0.2.0',
 };
 
 // MAPPING: Tool Name -> HTTP Route

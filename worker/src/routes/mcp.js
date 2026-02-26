@@ -432,7 +432,7 @@ export async function handleMcp(request) {
         return respond({
           protocolVersion: '2025-03-26',
           capabilities: { tools: {} },
-          serverInfo: { name: 'aoe2-battlesim', version: '1.0.0' },
+          serverInfo: { name: 'aoe2-battlesim', version: '0.2.0' },
         });
 
       case 'tools/list':
