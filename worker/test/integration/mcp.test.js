@@ -38,13 +38,14 @@ describe('GET /mcp', () => {
 });
 
 describe('tools/list', () => {
-  it('returns all 9 tools', async () => {
+  it('returns all 10 tools including simulate_v2', async () => {
     const res  = await mcp({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
     expect(res.status).toBe(200);
     const { result } = await res.json();
-    expect(result.tools).toHaveLength(9);
+    expect(result.tools).toHaveLength(10);
     const names = result.tools.map(t => t.name);
     expect(names).toContain('simulate');
+    expect(names).toContain('simulate_v2');
     expect(names).toContain('run_scenario');
     expect(names).toContain('simulate_sweep');
   });
@@ -122,6 +123,41 @@ describe('tools/call - get_preset', () => {
     expect(result.isError).toBe(false);
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.hp).toBeDefined();
+  });
+});
+
+describe('tools/call - simulate_v2', () => {
+  it('runs a v2 battle with civ-prefixed unit keys and returns winner', async () => {
+    const res = await mcp({
+      jsonrpc: '2.0', id: 10, method: 'tools/call',
+      params: {
+        name: 'simulate_v2',
+        arguments: {
+          side_a: { unit: 'britons_halberdier', count: 20 },
+          side_b: { unit: 'britons_cavalier',   count: 10 },
+        },
+      },
+    });
+    const { result } = await res.json();
+    expect(result.isError).toBe(false);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed).toHaveProperty('winner');
+    expect(parsed.winner).toBe('side_a');
+  });
+
+  it('returns isError:true for an unknown v2 unit key', async () => {
+    const res = await mcp({
+      jsonrpc: '2.0', id: 11, method: 'tools/call',
+      params: {
+        name: 'simulate_v2',
+        arguments: {
+          side_a: { unit: 'zzz_bad_unit', count: 5 },
+          side_b: { unit: 'britons_cavalier', count: 5 },
+        },
+      },
+    });
+    const { result } = await res.json();
+    expect(result.isError).toBe(true);
   });
 });
 

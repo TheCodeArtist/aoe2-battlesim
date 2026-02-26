@@ -1,6 +1,7 @@
 import { CORS } from '../cors.js';
 import { SCENARIOS } from '../data.js';
 import { simulateLogic, batchLogic, sweepLogic } from './simulate.js';
+import { simulateLogic as simulateV2Logic } from './simulate_v2.js';
 import { listUnitsLogic, getUnitLogic, listPresetsLogic, getPresetLogic } from './catalog.js';
 import { listScenariosLogic, runScenarioLogic } from './scenarios.js';
 
@@ -84,11 +85,14 @@ export const TOOLS = [
   {
     name: 'simulate',
     description:
-      'Run a single battle simulation between two army specs. ' +
+      'Run a single battle simulation between two army specs using the v1 generic catalog. ' +
       'Returns: winner ("side_a"|"side_b"|null for draw), draw (bool), duration_s, ' +
       'per-side remaining_count/remaining_hp/hp_pct_remaining/resource_value_initial/' +
       'resource_value_remaining/resource_value_lost, and efficiency ratios. ' +
-      'Call list_presets or list_units first if you do not know a valid unit key.',
+      'Call list_presets or list_units first if you do not know a valid unit key. ' +
+      'For civ-specific Imperial/Castle/Feudal stats use simulate_v2 instead — ' +
+      'it uses the full AoE2 armor-class damage formula, per-civ tech bonuses, trample, and accuracy, ' +
+      'making it a significantly more accurate model of the actual game.',
     inputSchema: {
       type: 'object',
       required: ['side_a', 'side_b'],
@@ -97,6 +101,32 @@ export const TOOLS = [
         side_a:  { ...ARMY_SPEC_SCHEMA, description: 'Army A specification.' },
         side_b:  { ...ARMY_SPEC_SCHEMA, description: 'Army B specification.' },
         options: OPTIONS_SCHEMA,
+      },
+    },
+  },
+  {
+    name: 'simulate_v2',
+    description:
+      'Run a single battle simulation using the v2 engine with civ-specific unit data. ' +
+      'Unit keys are civ-prefixed (e.g. "britons_cavalier", "aztecs_eagle_warrior"). ' +
+      'Uses the full AoE2 armor-class damage formula and supports trample (blastDamage). ' +
+      'Supports accuracy modelling via options.accuracy:true (ranged units can miss). ' +
+      'Returns the same fields as simulate. ' +
+      'Call GET /v2/units to discover valid keys.',
+    inputSchema: {
+      type: 'object',
+      required: ['side_a', 'side_b'],
+      additionalProperties: false,
+      properties: {
+        side_a:  { ...ARMY_SPEC_SCHEMA, description: 'Army A — unit key must be a v2 civ-prefixed key.' },
+        side_b:  { ...ARMY_SPEC_SCHEMA, description: 'Army B — unit key must be a v2 civ-prefixed key.' },
+        options: {
+          ...OPTIONS_SCHEMA,
+          properties: {
+            ...OPTIONS_SCHEMA.properties,
+            accuracy: { type: 'boolean', description: 'Enable accuracy modelling: ranged units deal 0 damage on a miss (default false).' },
+          },
+        },
       },
     },
   },
@@ -275,6 +305,7 @@ export const TOOLS = [
 
 const TOOL_HANDLERS = {
   simulate:       (a) => simulateLogic(a.side_a, a.side_b, a.options),
+  simulate_v2:    (a) => simulateV2Logic(a.side_a, a.side_b, a.options),
   simulate_batch: (a) => batchLogic(a.matchups, a.options),
   simulate_sweep: (a) => sweepLogic(a.side_a, a.side_b, a.sweep, a.options),
   list_units:     (a) => listUnitsLogic(a.name),

@@ -7,13 +7,13 @@ describe('TOOLS manifest', () => {
                      'list_units', 'get_unit', 'list_presets', 'get_preset',
                      'list_scenarios', 'run_scenario'];
 
-  it('has exactly 9 tools', () => {
-    expect(TOOLS).toHaveLength(9);
+  it('has exactly 10 tools', () => {
+    expect(TOOLS).toHaveLength(10);
   });
 
-  it('contains all required tool names', () => {
+  it('contains all required tool names including simulate_v2', () => {
     const names = TOOLS.map(t => t.name);
-    toolNames.forEach(n => expect(names).toContain(n));
+    [...toolNames, 'simulate_v2'].forEach(n => expect(names).toContain(n));
   });
 
   it('every tool has a description and inputSchema', () => {
