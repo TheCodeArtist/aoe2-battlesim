@@ -3,6 +3,7 @@ import { handleSimulate, handleBatch, handleSweep } from './routes/simulate.js';
 import { handleListScenarios, handleScenarioSimulate } from './routes/scenarios.js';
 import { handleListUnits, handleGetUnit, handleListPresets, handleGetPreset } from './routes/catalog.js';
 import { handleMcp } from './routes/mcp.js';
+import { handleRoot } from './routes/root.js';
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: CORS });
@@ -29,6 +30,7 @@ export default {
 
     // GET routes
     if (method === 'GET') {
+      if (path === '/')           return handleRoot();
       if (path === '/scenarios')  return handleListScenarios(request);
       if (path === '/units')      return handleListUnits(request);
       if (path === '/presets')    return handleListPresets(request);
