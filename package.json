@@ -6,6 +6,7 @@
     "prebuild":         "node worker/scripts/gen-data.mjs",
     "predev":           "node worker/scripts/gen-data.mjs",
     "predeploy":        "node worker/scripts/gen-data.mjs",
+    "pretest":          "node worker/scripts/gen-data.mjs",
     "dev":              "wrangler dev --config worker/wrangler.toml",
     "deploy":           "wrangler deploy --config worker/wrangler.toml",
     "test":             "vitest run --config worker/vitest.config.js",
