@@ -1,6 +1,8 @@
 # aoe2-battlesim
 
-A Cloudflare Workers API for Age of Empires II combat simulation. Run deterministic unit battles, sweep parameters, and query the unit catalog — all over HTTP or via a Model Context Protocol (MCP) server.
+A Cloudflare Workers API for Age of Empires II combat simulation.
+
+Run deterministic unit battles, sweep parameters, and query the unit catalog, all over HTTP or via a Model Context Protocol (MCP) server.
 
 Built on top of [Chombat](https://chombat.crazybus.org) (included as a git submodule).
 
@@ -45,6 +47,60 @@ All endpoints return JSON. CORS is enabled on all routes.
 | `POST` | `/mcp` | JSON-RPC 2.0 endpoint (MCP protocol version `2024-11-05`) |
 
 The MCP server exposes all simulation and catalog operations as tools: `simulate`, `simulate_batch`, `simulate_sweep`, `list_units`, `get_unit`, `list_presets`, `get_preset`, `list_scenarios`, `run_scenario`.
+
+---
+
+## Examples
+
+All examples hit the live API. Install [jq](https://jqlang.org) for pretty output, or drop the `| jq` part.
+
+### 1. Do skirms beat archers 10v10?
+
+```bash
+curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "side_a": { "unit": "archer",      "count": 10 },
+    "side_b": { "unit": "skirmisher", "count": 10 }
+  }' | jq '{ winner, "skirms_left": .side_b.remaining_count }'
+```
+
+```json
+{ "winner": "side_b", "skirms_left": 5 }
+```
+
+### 2. Is Fletching worth it?
+
+Fletching (Feudal Age Blacksmith) gives archers **+1 pierce attack** (4→5) and **+1 range** (4→5). Both matter: extra attack means more damage per volley, extra range means archers get the first shot. Use `overrides` to apply both and see whether they flip the 10v10 outcome:
+
+```bash
+curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "side_a": { "unit": "archer", "count": 10, "overrides": { "patk": 5, "range": 5 } },
+    "side_b": { "unit": "skirmisher", "count": 10 }
+  }' | jq '{ winner, "archers_left": .side_a.remaining_count, "skirms_left": .side_b.remaining_count }'
+```
+
+```json
+{ "winner": "side_a", "archers_left": 6, "skirms_left": 0 }
+```
+
+### 3. Alternately, how many unupgraded archers does it take to beat 10 skirms? (breakeven sweep)
+
+```bash
+curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate/sweep \
+  -H "Content-Type: application/json" \
+  -d '{
+    "side_a": { "unit": "archer" },
+    "side_b": { "unit": "skirmisher", "count": 10 },
+    "sweep": { "target": "side_a.count", "range": { "min": 1, "max": 30, "step": 1 } }
+  }' | jq '{ sweep_param, breakeven }'
+```
+
+```json
+{ "sweep_param": "side_a.count", "breakeven": 12 }
+```
 
 ---
 
@@ -116,5 +172,5 @@ worker/
     unit/             # Vitest unit tests
     integration/      # Vitest integration tests (Workers runtime)
 vendor/
-  chombat/            # Git submodule — unit definitions and scenarios
+  chombat/            # Git submodule with the unit definitions and scenarios
 ```
