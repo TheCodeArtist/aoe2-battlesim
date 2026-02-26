@@ -8,7 +8,13 @@ Built on top of [Chombat](https://chombat.crazybus.org) (included as a git submo
 
 **Live:** `https://aoe2-battlesim.thecodeartist.workers.dev`
 
-> **Note:** Uses Age of Empires II game data under the [Microsoft Game Content Usage Rules](https://www.xbox.com/en-US/developers/rules).
+### Use as an MCP server
+
+[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=aoe2-battlesim&config=eyJ1cmwiOiJodHRwczovL2FvZTItYmF0dGxlc2ltLnRoZWNvZGVhcnRpc3Qud29ya2Vycy5kZXYvbWNwIn0=)
+
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](vscode:mcp/install?%7B%22name%22%3A%22aoe2-battlesim%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Faoe2-battlesim.thecodeartist.workers.dev%2Fmcp%22%7D)
+
+> **Note:** Uses Age of Empires II game data under the [Microsoft Game Content Usage Rules](https://www.xbox.com/en-US/developers/rules). Not endorsed by or affiliated with Microsoft.
 
 ---
 
@@ -44,15 +50,79 @@ All endpoints return JSON. CORS is enabled on all routes.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/mcp` | JSON-RPC 2.0 endpoint (MCP protocol version `2024-11-05`) |
+| `POST` | `/mcp` | JSON-RPC 2.0 endpoint (MCP protocol version `2025-03-26`) |
 
-The MCP server exposes all simulation and catalog operations as tools: `simulate`, `simulate_batch`, `simulate_sweep`, `list_units`, `get_unit`, `list_presets`, `get_preset`, `list_scenarios`, `run_scenario`.
+The MCP server exposes all simulation and catalog operations as tools:   
+`simulate`, `simulate_batch`, `simulate_sweep`,  
+`list_units`, `get_unit`,  
+`list_presets`, `get_preset`,  
+`list_scenarios`, `run_scenario`.
+
+---
+
+## Army Spec
+
+Every simulation endpoint takes army specs for `side_a` and `side_b`. All fields except `unit` are optional.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `unit` | string \| object | — | Unit key (e.g. `"archer"`, `"archer_fu_feudal"`) **or** a fully inline stat object with at least `name`, `hp`, `reload`, `range` |
+| `count` | integer | `1` | Number of units |
+| `overrides` | object | — | Stat overrides applied on top of the base unit (`hp`, `patk`, `matk`, `parm`, `marm`, `reload`, `range`, `bonus_atk`, `bonus_reduction`) |
+| `micro` | integer 0–5 | `0` | Target-fire micro level: `0` = no micro, `5` = perfect focus-fire |
+| `engagement_pct` | integer 1–100 | `100` | Percentage of units that engage each volley |
+| `delay` | number | `0` | Seconds before this army starts producing units |
+| `tech_delay` | number | `0` | Seconds of tech upgrade delay after pre-queued units finish |
+| `units_before` | integer | `0` | Units already queued before the fight starts |
+| `buildings` | integer | `1` | Number of production buildings |
+| `resource_discounts` | object | — | Cost discounts as percentages 0–100: `all`, `food`, `wood`, `gold` |
+
+### Options
+
+All simulation endpoints accept an optional `options` object:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `tick` | number | `0.05` | Simulation time step in seconds |
+| `maxDuration` | number | `300` | Maximum simulation duration in seconds |
+| `include_history` | boolean | `false` | Include tick-by-tick history in the result |
+
+---
+
+## Simulate Response
+
+```json
+{
+  "winner": "side_a" | "side_b" | null,
+  "draw": false,
+  "duration_s": 12.3,
+  "side_a": {
+    "remaining_count": 4,
+    "remaining_hp": 160,
+    "initial_count": 10,
+    "hp_pct_remaining": 0.4,
+    "resource_value_initial": 350,
+    "resource_value_remaining": 140,
+    "resource_value_lost": 210
+  },
+  "side_b": { "...same fields..." },
+  "efficiency": {
+    "side_a_per_resource_spent": 1.67,
+    "side_b_per_resource_spent": 0.6
+  },
+  "history": null
+}
+```
+
+`winner` is `null` on a draw. `efficiency.side_a_per_resource_spent` is the resource value destroyed on side B per resource spent by side A (higher = more efficient). `history` is populated only when `options.include_history` is `true`.
 
 ---
 
 ## Examples
 
-All examples hit the live API. Install [jq](https://jqlang.org) for pretty output, or drop the `| jq` part.
+All examples hit the live API.  
+
+> Note: Install [jq](https://jqlang.org) for pretty output, or drop the `| jq` part.
 
 ### 1. Do skirms beat archers 10v10?
 
@@ -71,7 +141,9 @@ curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
 
 ### 2. Is Fletching worth it?
 
-Fletching (Feudal Age Blacksmith) gives archers **+1 pierce attack** (4→5) and **+1 range** (4→5). Both matter: extra attack means more damage per volley, extra range means archers get the first shot. Use `overrides` to apply both and see whether they flip the 10v10 outcome:
+Fletching (Feudal Age Blacksmith) gives archers **+1 pierce attack** (4→5) and **+1 range** (4→5).  
+Both matter: extra attack means more damage per volley, extra range means archers get the first shot.  
+Use `overrides` to apply both and see whether they flip the 10v10 outcome:
 
 ```bash
 curl -s https://aoe2-battlesim.thecodeartist.workers.dev/simulate \
@@ -119,7 +191,7 @@ npm install
 npm run dev
 ```
 
-The worker is available at `http://localhost:8787`.
+The worker should be available at `http://localhost:8787`.
 
 ---
 
@@ -145,14 +217,15 @@ npm run deploy       # Build and deploy to Cloudflare Workers
 
 ### CI/CD (GitHub Actions)
 
-Every push to `master` runs tests then deploys automatically. Pull requests run tests only.
+Every push to `main` runs tests then deploys automatically. Pull requests run tests only.
 
 Add two secrets to your GitHub repository (`Settings → Secrets and variables → Actions`):
 
 | Secret | Where to get it |
 |--------|----------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token (use the *Edit Cloudflare Workers* template) |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → Account ID (right sidebar) |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token (use the *Edit Cloudflare Workers* template) |
+
 
 ---
 
@@ -164,7 +237,8 @@ worker/
     index.js          # Router entry point
     sim.js            # Combat simulation engine
     data.js           # Data resolution
-    routes/           # Route handlers (simulate, catalog, scenarios, mcp)
+    cors.js           # Shared CORS headers
+    routes/           # Route handlers (simulate, catalog, scenarios, mcp, root)
     generated/        # Auto-generated unit/preset/scenario data (gitignored)
   scripts/
     gen-data.mjs      # Copies data from vendor/chombat → src/generated/
