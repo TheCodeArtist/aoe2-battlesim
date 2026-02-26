@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulateLogic } from '../../../src/routes/simulate.js';
+import { simulateLogic, batchLogic, sweepLogic } from '../../../src/routes/simulate.js';
 import { ARCHER_SPEC, SKIRM_SPEC, INLINE_UNIT_SPEC } from '../../fixtures.js';
 
 describe('simulateLogic — validation', () => {
@@ -108,5 +108,103 @@ describe('simulateLogic — options', () => {
     const result   = simulateLogic(sameSpec, { ...sameSpec });
     // May or may not be a draw depending on rounding; just verify the field is boolean
     expect(typeof result.draw).toBe('boolean');
+  });
+});
+
+describe('batchLogic', () => {
+  it('throws if matchups is not an array', () => {
+    expect(() => batchLogic(null)).toThrow('non-empty array');
+  });
+
+  it('throws if matchups is empty', () => {
+    expect(() => batchLogic([])).toThrow('non-empty array');
+  });
+
+  it('returns an array with results tagged by id', () => {
+    const results = batchLogic([
+      { id: 'run_1', side_a: ARCHER_SPEC, side_b: SKIRM_SPEC },
+      { id: 'run_2', side_a: SKIRM_SPEC,  side_b: ARCHER_SPEC },
+    ]);
+    expect(results).toHaveLength(2);
+    expect(results[0].id).toBe('run_1');
+    expect(results[1].id).toBe('run_2');
+    expect(results[0]).toHaveProperty('winner');
+  });
+
+  it('results are independent (different matchups can have different winners)', () => {
+    const results = batchLogic([
+      { id: 'a_wins', side_a: { unit: 'archer_fu_feudal', count: 30 }, side_b: SKIRM_SPEC },
+      { id: 'b_wins', side_a: ARCHER_SPEC, side_b: { unit: 'skirm_fu_feudal', count: 30 } },
+    ]);
+    expect(results[0].winner).toBe('side_a');
+    expect(results[1].winner).toBe('side_b');
+  });
+});
+
+describe('sweepLogic', () => {
+  it('throws for step <= 0', () => {
+    expect(() => sweepLogic(ARCHER_SPEC, SKIRM_SPEC, {
+      target: 'side_a.count', range: { min: 1, max: 10, step: 0 },
+    })).toThrow('step must be positive');
+  });
+
+  it('throws for min > max', () => {
+    expect(() => sweepLogic(ARCHER_SPEC, SKIRM_SPEC, {
+      target: 'side_a.count', range: { min: 20, max: 10, step: 1 },
+    })).toThrow('min must be');
+  });
+
+  it('throws for invalid target prefix', () => {
+    expect(() => sweepLogic(ARCHER_SPEC, SKIRM_SPEC, {
+      target: 'side_c.count', range: { min: 1, max: 5, step: 1 },
+    })).toThrow('side_a or side_b');
+  });
+
+  it('returns sweep_param, breakeven, and results fields', () => {
+    const result = sweepLogic(
+      { unit: 'archer_fu_feudal' }, SKIRM_SPEC,
+      { target: 'side_a.count', range: { min: 1, max: 30, step: 1 } }
+    );
+    expect(result).toHaveProperty('sweep_param', 'side_a.count');
+    expect(result).toHaveProperty('breakeven');
+    expect(result).toHaveProperty('results');
+    expect(Array.isArray(result.results)).toBe(true);
+  });
+
+  it('every result entry has value and winner', () => {
+    const { results } = sweepLogic(
+      { unit: 'archer_fu_feudal' }, SKIRM_SPEC,
+      { target: 'side_a.count', range: { min: 1, max: 5, step: 1 } }
+    );
+    results.forEach(r => {
+      expect(r).toHaveProperty('value');
+      expect(r).toHaveProperty('winner');
+    });
+  });
+
+  it('sweep side_a.count 1→30 vs 10 skirms — breakeven is found', () => {
+    const { breakeven } = sweepLogic(
+      { unit: 'archer_fu_feudal' }, { unit: 'skirm_fu_feudal', count: 10 },
+      { target: 'side_a.count', range: { min: 1, max: 30, step: 1 } }
+    );
+    expect(breakeven).not.toBeNull();
+    expect(breakeven).toBeGreaterThan(1);
+    expect(breakeven).toBeLessThan(30);
+  });
+
+  it('breakeven is null when winner never flips', () => {
+    // side_a always wins: 30 archers vs 1 skirm, vary side_a.count from 20 to 30
+    const { breakeven } = sweepLogic(
+      { unit: 'archer_fu_feudal' }, { unit: 'skirm_fu_feudal', count: 1 },
+      { target: 'side_a.count', range: { min: 20, max: 30, step: 1 } }
+    );
+    expect(breakeven).toBeNull();
+  });
+
+  it('does not mutate the original side_a and side_b objects', () => {
+    const orig_a = { unit: 'archer_fu_feudal', count: 5 };
+    const orig_b = { unit: 'skirm_fu_feudal',  count: 10 };
+    sweepLogic(orig_a, orig_b, { target: 'side_a.count', range: { min: 1, max: 3, step: 1 } });
+    expect(orig_a.count).toBe(5); // must not have been mutated
   });
 });

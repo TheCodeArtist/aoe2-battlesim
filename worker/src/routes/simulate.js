@@ -77,11 +77,51 @@ export function simulateLogic(side_a, side_b, options = {}) {
 }
 
 export function batchLogic(matchups, options = {}) {
-  throw new Error('Not implemented');
+  if (!Array.isArray(matchups) || matchups.length === 0)
+    throw new Error('matchups must be a non-empty array');
+  return matchups.map(({ id, side_a, side_b }) => ({
+    id,
+    ...simulateLogic(side_a, side_b, options),
+  }));
+}
+
+function setPath(obj, path, value) {
+  const last = path[path.length - 1];
+  let cur = obj;
+  for (let i = 0; i < path.length - 1; i++) {
+    if (cur[path[i]] === undefined) cur[path[i]] = {};
+    cur = cur[path[i]];
+  }
+  cur[last] = value;
 }
 
 export function sweepLogic(side_a, side_b, sweep, options = {}) {
-  throw new Error('Not implemented');
+  const { target, range: { min, max, step } } = sweep;
+  if (step <= 0)  throw new Error('sweep.range.step must be positive');
+  if (min > max)  throw new Error('sweep.range.min must be <= max');
+
+  const [side, ...fieldPath] = target.split('.');
+  if (side !== 'side_a' && side !== 'side_b')
+    throw new Error('sweep.target must start with side_a or side_b');
+
+  const results = [];
+  let baseWinner = null;
+  let breakeven  = null;
+
+  for (let v = min; v <= max + 1e-9; v = Math.round((v + step) * 1e9) / 1e9) {
+    const a = structuredClone(side_a);
+    const b = structuredClone(side_b);
+    const target_obj = side === 'side_a' ? a : b;
+    setPath(target_obj, fieldPath, v);
+
+    const { winner } = simulateLogic(a, b, { ...options, include_history: false });
+    results.push({ value: v, winner });
+
+    if (baseWinner === null) baseWinner = winner;
+    else if (breakeven === null && winner !== baseWinner) breakeven = v;
+  }
+
+  return { sweep_param: target, breakeven, results };
 }
 
 // ── HTTP handlers ─────────────────────────────────────────────────────────────
@@ -96,9 +136,19 @@ export async function handleSimulate(request) {
 }
 
 export async function handleBatch(request) {
-  return Response.json({ error: 'Not Implemented' }, { status: 501, headers: CORS });
+  try {
+    const { matchups, options } = await request.json();
+    return Response.json(batchLogic(matchups, options), { headers: CORS });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 400, headers: CORS });
+  }
 }
 
 export async function handleSweep(request) {
-  return Response.json({ error: 'Not Implemented' }, { status: 501, headers: CORS });
+  try {
+    const { side_a, side_b, sweep, options } = await request.json();
+    return Response.json(sweepLogic(side_a, side_b, sweep, options), { headers: CORS });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 400, headers: CORS });
+  }
 }
