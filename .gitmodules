@@ -1,0 +1,3 @@
+[submodule "vendor/chombat"]
+	path = vendor/chombat
+	url = https://github.com/Crazybus/chombat.git
